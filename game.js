@@ -30,6 +30,14 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+const ENERGY_LINES = 4;   // líneas necesarias para llenar la barra (configurable)
+const PREVIEW_BONUS = 5;  // piezas visibles mientras la habilidad está activa
+
+const ABILITIES = [
+  { id: 'preview5', name: 'Ver 5 piezas', desc: 'Muestra las próximas 5 piezas',
+    apply() { bonusRemaining = PREVIEW_BONUS; } },
+];
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -42,8 +50,12 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const energyFill = document.getElementById('energy-fill');
+const abilityMenu = document.getElementById('ability-menu');
+const abilityList = document.getElementById('ability-list');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, queue, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let energy, bonusRemaining, menuOpen;
 
 function applyTheme(isLight) {
   document.body.classList.toggle('light-mode', isLight);
@@ -65,6 +77,14 @@ function randomPiece() {
   const type = Math.floor(Math.random() * 8) + 1;
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
+}
+
+function previewCount() {
+  return bonusRemaining > 0 ? PREVIEW_BONUS : 1;
+}
+
+function fillQueue() {
+  while (queue.length < previewCount()) queue.push(randomPiece());
 }
 
 function collide(shape, ox, oy) {
@@ -123,6 +143,7 @@ function clearLines() {
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    energy = Math.min(ENERGY_LINES, energy + cleared);
     updateHUD();
   }
 }
@@ -157,8 +178,9 @@ function lockPiece() {
 }
 
 function spawn() {
-  current = next;
-  next = randomPiece();
+  current = queue.shift();
+  if (bonusRemaining > 0) bonusRemaining--;
+  fillQueue();
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -169,6 +191,14 @@ function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+  updateEnergyHUD();
+}
+
+function updateEnergyHUD() {
+  if (!energyFill) return;
+  const pct = Math.min(100, (energy / ENERGY_LINES) * 100);
+  energyFill.style.width = `${pct}%`;
+  energyFill.classList.toggle('ready', energy >= ENERGY_LINES);
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -224,13 +254,18 @@ function draw() {
 
 function drawNext() {
   const NB = 30;
+  const CELL_ROWS = 4; // filas de grilla reservadas por pieza (encaja pieza 4x4)
+  const count = previewCount();
+  nextCanvas.height = CELL_ROWS * NB * count;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-  const shape = next.shape;
-  const offX = Math.floor((4 - shape[0].length) / 2);
-  const offY = Math.floor((4 - shape.length) / 2);
-  for (let r = 0; r < shape.length; r++)
-    for (let c = 0; c < shape[r].length; c++)
-      drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
+  for (let i = 0; i < count; i++) {
+    const shape = queue[i].shape;
+    const offX = Math.floor((4 - shape[0].length) / 2);
+    const offY = i * CELL_ROWS + Math.floor((4 - shape.length) / 2);
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
+  }
 }
 
 function endGame() {
@@ -272,6 +307,38 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
+function openAbilityMenu() {
+  menuOpen = true;
+  cancelAnimationFrame(animId);
+  abilityList.innerHTML = '';
+  for (const ability of ABILITIES) {
+    const btn = document.createElement('button');
+    btn.className = 'ability-btn';
+    btn.textContent = `${ability.name} — ${ability.desc}`;
+    btn.addEventListener('click', () => chooseAbility(ability));
+    abilityList.appendChild(btn);
+  }
+  abilityMenu.classList.remove('hidden');
+}
+
+function chooseAbility(ability) {
+  ability.apply();
+  energy = 0;
+  updateEnergyHUD();
+  fillQueue();
+  drawNext();
+  closeAbilityMenu();
+}
+
+function closeAbilityMenu() {
+  menuOpen = false;
+  abilityMenu.classList.add('hidden');
+  if (!paused && !gameOver) {
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+}
+
 function init() {
   board = createBoard();
   score = 0;
@@ -279,20 +346,29 @@ function init() {
   level = 1;
   paused = false;
   gameOver = false;
+  menuOpen = false;
+  energy = 0;
+  bonusRemaining = 0;
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
-  next = randomPiece();
+  queue = [];
+  fillQueue();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  abilityMenu.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
+  if (e.code === 'KeyP') { if (menuOpen) return; togglePause(); return; }
+  if (menuOpen || paused || gameOver) return;
+  if (e.code === 'KeyE') {
+    if (energy >= ENERGY_LINES) openAbilityMenu();
+    return;
+  }
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;

@@ -36,6 +36,13 @@
         </div>
 
         <div class="panel-section">
+          <span class="label">ENERGY</span>
+          <div class="energy-bar">
+            <div class="energy-fill" id="energy-fill"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
           <span class="label">NEXT</span>
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
@@ -47,6 +54,7 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
+            <li><kbd>E</kbd> habilidad</li>
             <li><kbd>P</kbd> pausa</li>
           </ul>
         </div>
@@ -58,6 +66,13 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="ability-menu" class="overlay hidden">
+      <div class="overlay-box">
+        <p id="ability-menu-title">ELEGIR HABILIDAD</p>
+        <div id="ability-list" class="ability-list"></div>
       </div>
     </div>
   </div>

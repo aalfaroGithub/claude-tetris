@@ -179,6 +179,28 @@ body {
   letter-spacing: 1px;
 }
 
+/* ---- Barra de energía ---- */
+.energy-bar {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--switch-bg);
+  border: 1px solid var(--switch-border);
+  overflow: hidden;
+}
+
+.energy-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--value-color);
+  transition: width 0.2s;
+}
+
+.energy-fill.ready {
+  background: var(--overlay-title-color);
+  box-shadow: 0 0 10px var(--overlay-title-color);
+}
+
 #next-canvas {
   display: block;
   border: 1px solid var(--board-border);
@@ -264,5 +286,35 @@ kbd {
 }
 
 #restart-btn:hover {
+  background: var(--btn-hover-bg);
+}
+
+/* ---- Menú de habilidades ---- */
+#ability-menu-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--title-color);
+}
+
+.ability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ability-btn {
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ability-btn:hover {
   background: var(--btn-hover-bg);
 }
